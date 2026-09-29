@@ -7,8 +7,8 @@ const SESSION_VAR_KEY = 'ocgo_session_id';
 
 const SES_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 const UA_PRESETS = [
-    { label: 'opencode/1.18.29 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14', value: 'opencode/1.18.29 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14' },
-    { label: 'opencode/latest/1.3.15/cli', value: 'opencode/latest/1.3.15/cli' },
+    { label: 'opencode/latest/2.0.6/cli', value: 'opencode/latest/2.0.6/cli' },
+    { label: 'opencode/latest/2.0.6/desktop', value: 'opencode/latest/2.0.6/desktop' },
 ];
 
 let sesLastMs = 0;
@@ -25,7 +25,7 @@ function defaultSettings() {
         randomSessionId: '',
         spoofUa: true,
         uaPresetIndex: 0,
-        uaCustom: '',
+        clientValue: 'cli',
     };
 }
 
@@ -124,9 +124,6 @@ function getExistingSessionId() {
 
 function getUaValue() {
     const s = getSettings();
-    if (s.uaCustom && s.uaCustom.trim()) {
-        return s.uaCustom.trim();
-    }
     const preset = UA_PRESETS[s.uaPresetIndex] || UA_PRESETS[0];
     return preset.value;
 }
@@ -189,7 +186,7 @@ function applyHeaders(generateData) {
         headers['x-opencode-session'] = sessionId;
     }
     headers['x-opencode-request'] = generateId('msg_', false);
-    headers['x-opencode-client'] = 'tui';
+    headers['x-opencode-client'] = s.clientValue;
     trackRequestId(headers['x-opencode-request']);
     if (s.spoofUa) {
         headers['user-agent'] = getUaValue();
@@ -275,13 +272,16 @@ const TEMPLATE = `
                 <input id="ocgo_spoof_ua" type="checkbox" />
                 <span>将 User-Agent 配置为与 opencode 客户端一致</span>
             </label>
+            <label for="ocgo_client">x-opencode-client 取值</label>
+            <select id="ocgo_client" class="text_pole">
+                <option value="cli">cli（OpenCode CLI / TUI 默认）</option>
+                <option value="tui">tui（早期 OpenCode 默认）</option>
+            </select>
             <label for="ocgo_ua_preset">User-Agent 预设</label>
             <select id="ocgo_ua_preset" class="text_pole">
-                <option value="0">opencode/1.18.29 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14</option>
-                <option value="1">opencode/latest/1.3.15/cli</option>
+                <option value="0">opencode/latest/2.0.6/cli</option>
+                <option value="1">opencode/latest/2.0.6/desktop</option>
             </select>
-            <label for="ocgo_ua_custom">自定义 User-Agent（留空使用预设）</label>
-            <input id="ocgo_ua_custom" class="text_pole" type="text" autocomplete="off" />
             <div id="ocgo_current_ua" class="ocgo-info"></div>
         </div>
     </div>
@@ -357,11 +357,10 @@ function bindSettings() {
         renderCurrent();
     });
 
-    el('ocgo_ua_custom').value = settings.uaCustom || '';
-    el('ocgo_ua_custom').addEventListener('input', (e) => {
-        settings.uaCustom = String(e.target.value);
+    el('ocgo_client').value = settings.clientValue || 'cli';
+    el('ocgo_client').addEventListener('change', (e) => {
+        settings.clientValue = String(e.target.value);
         saveSettingsDebounced();
-        renderCurrent();
     });
 
     updateMode();

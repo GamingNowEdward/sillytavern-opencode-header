@@ -25,8 +25,8 @@
 
 - **注入 `x-opencode-session`**：三种会话 ID 模式（见下），每个请求自动合并进 `custom_include_headers`，由 ST 服务器端转发到上游。
 - **注入 `x-opencode-request`**：每次请求新生成一个 `msg_` 格式 ID，与 opencode 客户端逐请求一致。
-- **注入 `x-opencode-client: tui`**：固定常量，标识客户端类型。
-- **User-Agent 配置**：可选，把 `user-agent` 配置为与 opencode 客户端一致的取值（两种预设或自定义）。
+- **`x-opencode-client`**：下拉选择 `cli`（OpenCode v2 默认）或 `tui`（兼容早期版本）。
+- **`User-Agent 配置`**：可选，提供与 OpenCode v2 客户端一致的 UA 预设（`opencode/latest/2.0.6/cli` / `opencode/latest/2.0.6/desktop`）。
 - **回复消息上显示 request id**：每次生成完成后，把本次请求使用的 `x-opencode-request` 显示在回复消息的时间旁边（重新生成会自动更新）。
 - **设置面板**：实时展示当前对话的 Session ID 与 User-Agent，提供「查询当前聊天 Session ID」按钮手动查询/生成。
 
@@ -36,8 +36,8 @@
 |---|---|---|
 | `x-opencode-session` | `ses_...` | 按会话模式生成，整个会话稳定复用 |
 | `x-opencode-request` | `msg_...` | 每次请求新生成（正序时间戳/计数器 + 62 进制随机） |
-| `x-opencode-client` | `tui` | 固定常量 |
-| `user-agent` | opencode 预设或自定义 | 可选 |
+| `x-opencode-client` | `cli` / `tui`（下拉选择） | 用户在下拉菜单选择 |
+| `user-agent` | `opencode/latest/2.0.6/cli` 或 `opencode/latest/2.0.6/desktop` | 从两个预设中选择 |
 
 `x-opencode-project` 与 `x-parent-session-id` 刻意不加：前者绑定账号真实项目记录，后者仅子会话需要，服务端都不依赖。
 
@@ -77,6 +77,7 @@
 - 若你在 Custom Headers 里手写了 `x-opencode-session`，本扩展会**覆盖**为会话 ID。
 - 每聊天模式下，Session ID 存在聊天的 metadata 里，跟随聊天存档持久化；删除聊天即随之删除。
 - 本扩展仅处理协议层请求头格式，不改变任何服务的条款或限制；请遵守所接入服务提供方的使用条款。
+- 兼容 OpenCode v2 的 header 格式（v1 客户端字段保持兼容但 UA 预设已切换到 v2 格式）。
 
 ## 文件
 
