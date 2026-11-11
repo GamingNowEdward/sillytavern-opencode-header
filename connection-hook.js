@@ -40,11 +40,13 @@ export function installConnectionManagerHook(deps) {
     const service = context?.ChatCompletionService;
 
     if (!service || typeof service.processRequest !== 'function') {
+        markHookState('pending');
         return false;
     }
 
     if (service.processRequest.__ocgoWrapped) {
         installed = true;
+        markHookState('installed');
         return true;
     }
 
@@ -76,8 +78,22 @@ export function installConnectionManagerHook(deps) {
     wrapped.__ocgoWrapped = true;
     service.processRequest = wrapped;
     installed = true;
+    markHookState('installed');
     console.log('[OpenCodeGoHeader] ConnectionManager hook installed.');
     return true;
+}
+
+/**
+ * Exposes the hook state on the root element so support can check it from the
+ * DOM without devtools access.
+ * @param {'pending' | 'installed'} state
+ */
+function markHookState(state) {
+    try {
+        document.documentElement.dataset.ocgoHook = state;
+    } catch {
+        // ignore: diagnostics only
+    }
 }
 
 /**
