@@ -1,6 +1,7 @@
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../script.js';
 import { extension_settings, getContext } from '../../../extensions.js';
 import { yaml } from '../../../../lib.js';
+import { installConnectionManagerHook } from './connection-hook.js';
 
 const SETTINGS_KEY = 'ocgo_session_header';
 const SESSION_VAR_KEY = 'ocgo_session_id';
@@ -181,6 +182,17 @@ function applyHeaders(generateData) {
     if (generateData.proxy_password && !headers['Authorization']) {
         headers['Authorization'] = `Bearer ${generateData.proxy_password}`;
     }
+    addOpencodeHeaders(headers);
+    generateData.custom_include_headers = yaml.stringify(headers);
+}
+
+/**
+ * Mutates an existing header map with the x-opencode-* values.
+ * Shared by the main-chat path (applyHeaders) and the ConnectionManager hook.
+ * @param {Record<string, string>} headers
+ */
+function addOpencodeHeaders(headers) {
+    const s = getSettings();
     const sessionId = getOrCreateSessionId();
     if (sessionId) {
         headers['x-opencode-session'] = sessionId;
@@ -191,7 +203,21 @@ function applyHeaders(generateData) {
     if (s.spoofUa) {
         headers['user-agent'] = getUaValue();
     }
-    generateData.custom_include_headers = yaml.stringify(headers);
+}
+
+/**
+ * Extensions that bypass Generate() (Summaryception and friends) call
+ * ChatCompletionService.processRequest directly, so their requests never reach
+ * applyHeaders(). Wrap that entry point once the context exposes the service.
+ * @returns {boolean}
+ */
+function tryInstallConnectionManagerHook() {
+    return installConnectionManagerHook({
+        getContext,
+        isOpencodeEndpoint,
+        parseHeadersYaml,
+        addHeaders: addOpencodeHeaders,
+    });
 }
 
 function onSettingsReady(generateData) {
@@ -384,6 +410,14 @@ jQuery(() => {
     eventSource.on(event_types.CHAT_LOADED, onChatLoaded);
     eventSource.on(event_types.CHAT_CHANGED, onChatLoaded);
     eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, onCharacterMessageRendered);
+    // Third-party extensions that call ChatCompletionService.processRequest
+    // directly (e.g. Summaryception) never emit CHAT_COMPLETION_SETTINGS_READY,
+    // so hook that entry point as soon as the context exposes it.
+    if (!tryInstallConnectionManagerHook()) {
+        eventSource.on(event_types.APP_READY, tryInstallConnectionManagerHook);
+        // APP_READY may have fired before this extension loaded; retry shortly.
+        setTimeout(tryInstallConnectionManagerHook, 2000);
+    }
     renderCurrent();
     console.log('[OpenCodeGoHeader] loaded.');
 });
