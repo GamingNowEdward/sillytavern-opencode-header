@@ -79,8 +79,19 @@
 - 本扩展仅处理协议层请求头格式，不改变任何服务的条款或限制；请遵守所接入服务提供方的使用条款。
 - 兼容 OpenCode v2 的 header 格式（v1 客户端字段保持兼容但 UA 预设已切换到 v2 格式）。
 
+## ConnectionManager 兼容层
+
+主聊天走 `Generate()` 时会触发 `CHAT_COMPLETION_SETTINGS_READY`，扩展借此注入请求头。但有些扩展（Summaryception、向量化、翻译等）直接调用 `SillyTavern.getContext().ChatCompletionService.processRequest()`，绕过了该事件，请求会因缺少 `x-opencode-session` 被上游拒绝（`400 MissingSessionID`）。
+
+`connection-hook.js` 包装了 `processRequest`：当目标地址包含 `zen/go` 时，把同一组请求头合并进 `custom_include_headers`。它不修改 `chat_completion_source`、`custom_url` 或密钥，因此目标 Connection Profile 必须是 **Custom** 源。
+
+- 已注入过 `x-opencode-session` 的 payload 会被跳过，主聊天路径不受影响。
+- 可通过 `document.documentElement.dataset.ocgoHook` 查看状态（`pending` / `installed`）。
+- 控制台会输出 `[OpenCodeGoHeader] ConnectionManager hook installed.`。
+
 ## 文件
 
 - `manifest.json` — 扩展清单
 - `index.js` — 扩展逻辑（会话 ID + UA 配置）
+- `connection-hook.js` — ConnectionManager 请求头注入
 - `style.css` — 设置面板样式
